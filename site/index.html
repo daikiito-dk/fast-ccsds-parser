@@ -298,6 +298,13 @@
           <p lang="ja">Python標準ライブラリだけで動きます。<code>pip install</code> ですぐに使えます。</p>
           <p lang="en">Pure standard library. One <code>pip install</code> and you are done.</p>
         </div>
+        <div class="card">
+          <div class="icon">📊</div>
+          <h3 lang="ja">DataFrameにそのまま</h3>
+          <h3 lang="en">Straight to DataFrames</h3>
+          <p lang="ja">Arrow・Polars・pandasへの出力とParquet保存に対応。パケットごとにオブジェクトを作らない列形式で、少ないメモリでさばけます。</p>
+          <p lang="en">Exports to Arrow, Polars, pandas, and Parquet. Columnar storage keeps memory close to the input size.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -317,7 +324,12 @@
 
 <span class="c"># ダンプファイルを1パケットずつ / Stream a whole dump, packet by packet</span>
 <span class="k">for</span> pkt <span class="k">in</span> <span class="f">iter_file</span>(<span class="s">"groundstation_dump.bin"</span>):
-    <span class="f">print</span>(pkt.header.apid, pkt.header.sequence_count, <span class="f">len</span>(pkt.payload))</pre>
+    <span class="f">print</span>(pkt.header.apid, pkt.header.sequence_count, <span class="f">len</span>(pkt.payload))
+
+<span class="c"># DataFrameやParquetに一発変換 / Straight to a DataFrame or Parquet</span>
+<span class="k">from</span> fast_ccsds_parser <span class="k">import</span> scan_file, write_parquet
+df = <span class="f">scan_file</span>(<span class="s">"groundstation_dump.bin"</span>).<span class="f">to_pandas</span>()
+<span class="f">write_parquet</span>(<span class="s">"groundstation_dump.bin"</span>, <span class="s">"packets.parquet"</span>)</pre>
     </div>
   </section>
 
@@ -420,10 +432,10 @@
           <p lang="ja"><strong>Pure Python プロトタイプ（v0.1.0、公開済み）</strong><br>ヘッダ解析、パケット分割、ペイロード分離、ファイルのストリーム処理。</p>
           <p lang="en"><strong>Pure-Python prototype (v0.1.0, released)</strong><br>Header parsing, packet splitting, payload extraction, streaming file parsing.</p>
         </li>
-        <li class="next">
-          <div class="phase">→ Phase 2a</div>
-          <p lang="ja"><strong>表形式での出力</strong><br><code>to_arrow()</code>・<code>to_polars()</code>・<code>to_pandas()</code>。データを列ごとにまとめて持ち、メモリ使用量を入力ファイルの大きさに近く保ちます。</p>
-          <p lang="en"><strong>Columnar output</strong><br><code>to_arrow()</code>, <code>to_polars()</code>, <code>to_pandas()</code>, keeping memory close to the input size.</p>
+        <li class="done">
+          <div class="phase">✓ Phase 2a</div>
+          <p lang="ja"><strong>表形式での出力（v0.2.0、公開済み）</strong><br><code>scan_file()</code>・<code>to_arrow()</code>・<code>to_polars()</code>・<code>to_pandas()</code>・<code>write_parquet()</code>。データを列ごとにまとめて持ち、メモリ使用量を入力ファイルの大きさに近く保ちます。</p>
+          <p lang="en"><strong>Columnar output (v0.2.0, released)</strong><br><code>scan_file()</code>, <code>to_arrow()</code>, <code>to_polars()</code>, <code>to_pandas()</code>, <code>write_parquet()</code>, keeping memory close to the input size.</p>
         </li>
         <li class="next">
           <div class="phase">→ Phase 2b</div>

@@ -51,6 +51,39 @@ def _count_fcp_pandas_via_dicts(path: str) -> int:
     return len(pd.DataFrame.from_records(p.to_dict() for p in iter_file(path)))
 
 
+def _count_fcp_scan_file_headers(path: str) -> int:
+    from fast_ccsds_parser import scan_file
+
+    return len(scan_file(path, payload=False))
+
+
+def _count_fcp_scan_file(path: str) -> int:
+    from fast_ccsds_parser import scan_file
+
+    return len(scan_file(path))
+
+
+def _count_fcp_scan_to_polars(path: str) -> int:
+    from fast_ccsds_parser import scan_file
+
+    return len(scan_file(path).to_polars())
+
+
+def _count_fcp_scan_to_pandas(path: str) -> int:
+    from fast_ccsds_parser import scan_file
+
+    return len(scan_file(path).to_pandas())
+
+
+def _count_fcp_write_parquet(path: str) -> int:
+    import tempfile
+
+    from fast_ccsds_parser import write_parquet
+
+    with tempfile.TemporaryDirectory() as tmp:
+        return write_parquet(path, Path(tmp) / "out.parquet", chunk_packets=250_000)
+
+
 def _count_ccsdspy_read_primary_headers(path: str) -> int:
     from ccsdspy.utils import read_primary_headers
 
@@ -74,6 +107,11 @@ CASES = {
     "fast-ccsds-parser: header walk": _count_fcp_headers_only,
     "fast-ccsds-parser: iter_file": _count_fcp_iter_file,
     "fast-ccsds-parser: pandas via dicts": _count_fcp_pandas_via_dicts,
+    "fast-ccsds-parser: scan_file (no payload)": _count_fcp_scan_file_headers,
+    "fast-ccsds-parser: scan_file": _count_fcp_scan_file,
+    "fast-ccsds-parser: scan_file -> polars": _count_fcp_scan_to_polars,
+    "fast-ccsds-parser: scan_file -> pandas": _count_fcp_scan_to_pandas,
+    "fast-ccsds-parser: write_parquet": _count_fcp_write_parquet,
     "ccsdspy: read_primary_headers": _count_ccsdspy_read_primary_headers,
     "ccsdspy: iter_packet_bytes": _count_ccsdspy_iter_packet_bytes,
     "space_packet_parser: ccsds_generator": _count_spp_ccsds_generator,
@@ -99,12 +137,12 @@ def run_case(name: str, path: str) -> None:
         count = func(path)
         elapsed = time.perf_counter() - start
     except ImportError as exc:
-        print(f"{name:40s} skipped ({exc.name} not installed)")
+        print(f"{name:44s} skipped ({exc.name} not installed)")
         return
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # ru_maxrss is bytes on macOS but kilobytes on Linux.
     peak_mb = peak / 1024 / 1024 if sys.platform == "darwin" else peak / 1024
-    print(f"{name:40s} {count:>10,d} pkts {elapsed:8.3f} s {peak_mb:8.1f} MB peak RSS")
+    print(f"{name:44s} {count:>10,d} pkts {elapsed:8.3f} s {peak_mb:8.1f} MB peak RSS")
 
 
 def main() -> None:

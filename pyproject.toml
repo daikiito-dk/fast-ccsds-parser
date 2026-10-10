@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fast-ccsds-parser"
-description = "Fast, dependency-free parsing of CCSDS Space Packets (CCSDS 133.0-B): primary headers, payload extraction, and streaming file parsing with a pure-Python core."
+description = "Fast, dependency-free parsing of CCSDS Space Packets (CCSDS 133.0-B): primary headers, payload extraction, streaming file parsing, and columnar export to Arrow, Polars, pandas, and Parquet."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -37,6 +37,10 @@ dependencies = []
 dynamic = ["version"]
 
 [project.optional-dependencies]
+arrow = ["pyarrow>=14.0.1"]
+polars = ["polars>=1.0", "pyarrow>=14.0.1"]
+pandas = ["pandas>=2.0", "pyarrow>=14.0.1"]
+all = ["fast-ccsds-parser[arrow,polars,pandas]"]
 dev = [
     "pytest>=7",
     "pytest-cov",

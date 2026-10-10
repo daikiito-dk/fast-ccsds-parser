@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from fast_ccsds_parser import iter_packets, parse_file
+from fast_ccsds_parser import iter_packets, iter_tables, parse_file, scan_file
 
 pytestmark = pytest.mark.network
 
@@ -90,3 +90,31 @@ def test_real_dump_apid_histogram(suda_dump: bytes) -> None:
     for packet in iter_packets(suda_dump):
         counts[packet.header.apid] = counts.get(packet.header.apid, 0) + 1
     assert counts == SUDA_APID_COUNTS
+
+
+def test_real_dump_scan_file_matches_packets(suda_dump: bytes, tmp_path: Path) -> None:
+    """Columnar scanning must agree with the per-packet parser on real data."""
+    path = tmp_path / "suda_cleansplit.dat"
+    path.write_bytes(suda_dump)
+    table = scan_file(path)
+    packets = list(iter_packets(suda_dump))
+    assert len(table) == SUDA_PACKET_COUNT
+    assert list(table.apid) == [p.header.apid for p in packets]
+    assert list(table.sequence_count) == [p.header.sequence_count for p in packets]
+    assert all(table.payload(i) == p.payload for i, p in enumerate(packets))
+
+    chunks = list(iter_tables(path, chunk_packets=4000))
+    assert [len(c) for c in chunks] == [4000, 4000, 2589]
+
+
+def test_real_dump_to_arrow(suda_dump: bytes, tmp_path: Path) -> None:
+    pytest.importorskip("pyarrow")
+    import pyarrow.compute as pc
+
+    path = tmp_path / "suda_cleansplit.dat"
+    path.write_bytes(suda_dump)
+    arrow = scan_file(path).to_arrow()
+    counts = pc.value_counts(arrow.column("apid")).to_pylist()
+    assert {c["values"]: c["counts"] for c in counts} == SUDA_APID_COUNTS
+    total = pc.sum(pc.binary_length(arrow.column("payload"))).as_py()
+    assert total + 6 * SUDA_PACKET_COUNT == len(suda_dump)

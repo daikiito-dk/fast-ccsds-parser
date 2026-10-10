@@ -30,8 +30,9 @@ from .packets import (
     parse_packet,
     parse_packets,
 )
+from .table import PacketTable, iter_tables, scan_bytes, scan_file, write_parquet
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "__version__",
@@ -54,4 +55,10 @@ __all__ = [
     "parse_packets",
     "iter_file",
     "parse_file",
+    # tables
+    "PacketTable",
+    "scan_bytes",
+    "scan_file",
+    "iter_tables",
+    "write_parquet",
 ]

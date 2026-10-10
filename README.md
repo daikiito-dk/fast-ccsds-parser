@@ -24,6 +24,13 @@ just want their packets parsed, without pulling a decoding framework.
 pip install fast-ccsds-parser
 ```
 
+The core has no dependencies. For columnar export, add an extra
+(`arrow`, `polars`, `pandas`, or `all`):
+
+```console
+pip install "fast-ccsds-parser[pandas]"
+```
+
 or from source:
 
 ```console
@@ -46,6 +53,16 @@ for pkt in iter_file("dump_20261010.pkts"):
 
 # In-memory buffers work the same way:
 packets = [p.to_dict() for p in iter_packets(buffer)]
+```
+
+Need a whole dump as a DataFrame? Scan it column by column instead of
+building one dict per packet (needs `fast-ccsds-parser[pandas]`):
+
+```python
+from fast_ccsds_parser import scan_file, write_parquet
+
+df = scan_file("dump_20261010.pkts").to_pandas()
+write_parquet("dump_20261010.pkts", "dump_20261010.parquet")
 ```
 
 ## What it parses
@@ -83,10 +100,37 @@ bit:   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
 | `iter_packets(data, *, strict=True, skip_idle=False)` | Generator over a buffer of concatenated packets |
 | `parse_packets(data, ...)` | Same, as a `list` |
 | `iter_file(path, ...)` / `parse_file(path, ...)` | Stream packets from a dump file with O(1) memory |
+| `scan_bytes(data, *, payload=True, ...)` | Parse a buffer into a columnar `PacketTable` |
+| `scan_file(path, *, payload=True, ...)` | Parse a whole file into one `PacketTable` (memory-mapped) |
+| `iter_tables(path, *, chunk_packets=1_000_000, ...)` | Yield one `PacketTable` per chunk, for files larger than memory |
+| `write_parquet(source, destination, ...)` | Convert a packet file to Parquet chunk by chunk |
 
 `SpacePacket` carries `header` (a `PrimaryHeader`), `payload` (the data
 field bytes), `raw` (the complete packet bytes), and a `to_dict()` that
 flattens everything into a single dict.
+
+### Columnar output
+
+`PacketTable` stores header fields in typed `array.array` columns and all
+payloads in one contiguous buffer, so memory stays close to the input size.
+Columns: `offset`, `version`, `type`, `secondary_header_flag`, `apid`,
+`sequence_flags`, `sequence_count`, `packet_length`, and `payload`.
+
+```python
+table = scan_file("dump_20261010.pkts")   # or scan_bytes(buffer)
+table.apid                                # array.array, one entry per packet
+table.payload(0)                          # payload bytes of packet 0
+
+arrow = table.to_arrow()                  # pyarrow.Table (header columns are zero-copy)
+df = table.to_polars()                    # polars.DataFrame
+df = table.to_pandas()                    # pandas.DataFrame (payload stays Arrow-backed)
+```
+
+Export needs the matching extra: `to_arrow()` and `write_parquet()` need
+`pyarrow` (`fast-ccsds-parser[arrow]`), `to_polars()` and `to_pandas()`
+add `polars` / `pandas` (the `polars` and `pandas` extras). Scanning
+itself works with the standard library alone; pass `payload=False` to keep
+only the header columns and use much less memory.
 
 ## Semantics to know
 
@@ -112,12 +156,12 @@ Several mature Python libraries already handle CCSDS space packets, and all
 of them can split packets and read primary headers without a mission packet
 definition. Pick the one that fits your job:
 
-| (as of 2026-10) | fast-ccsds-parser 0.1 | [ccsdspy] 2.0 | [space-packet-parser] 6.2 | [spacepackets] 0.32 |
+| (as of 2026-10) | fast-ccsds-parser 0.2 | [ccsdspy] 2.0 | [space-packet-parser] 6.2 | [spacepackets] 0.32 |
 | --- | --- | --- | --- | --- |
 | Main focus | Structural parsing (headers, packet boundaries, payloads) | Field decoding from packet definitions | Field decoding from XTCE definitions | Building and parsing packets, incl. ECSS PUS and CFDP |
 | Runtime dependencies | None | numpy, bitstruct, pyyaml, appdirs | click, lxml, rich | fastcrc, deprecation |
 | Header-only parsing without definitions | Yes | Yes (`ccsdspy.utils.read_primary_headers`, `split_by_apid`) | Yes (`ccsds_generator`) | Yes (`parse_space_packets`) |
-| Tabular output | Planned: Arrow / Polars / pandas | NumPy arrays (pandas via [SPaC-Kit]) | xarray (optional extra) | - |
+| Tabular output | Arrow / Polars / pandas, Parquet export (optional extras) | NumPy arrays (pandas via [SPaC-Kit]) | xarray (optional extra) | - |
 | Live input | Planned: asyncio TCP / WebSocket | - | Sockets and UDP (synchronous) | Incremental parsing from a deque |
 | Segmented packet reassembly | - | - | Yes | - |
 
@@ -136,23 +180,32 @@ into data-analysis tools quickly and with little memory.
 
 [`benchmarks/bench.py`](benchmarks/bench.py) measures packet throughput and
 peak memory, running each case in a fresh process. Results for 1,000,000
-synthetic 32-byte packets (32 MB), Python 3.12, Apple M4, ccsdspy 2.0.1,
-space_packet_parser 6.2.0, pandas 3.0.6:
+synthetic 32-byte packets (32 MB), Python 3.12, Apple M4, pandas 3.0.6,
+polars 2.0.0, pyarrow 26.0.0:
 
 | Case | Time | Peak RSS |
 | --- | ---: | ---: |
+| fast-ccsds-parser: `scan_file` (headers only) | 0.15 s | 80 MB |
+| fast-ccsds-parser: `scan_file` (with payloads) | 0.29 s | 122 MB |
+| fast-ccsds-parser: `scan_file().to_pandas()` | 0.45 s | 188 MB |
+| fast-ccsds-parser: `scan_file().to_polars()` | 0.62 s | 232 MB |
+| fast-ccsds-parser: `write_parquet()` | 0.61 s | 232 MB |
 | fast-ccsds-parser: header walk | 0.47 s | 53 MB |
-| fast-ccsds-parser: `iter_file` (streaming) | 0.83 s | 22 MB |
-| fast-ccsds-parser: pandas via per-packet dicts | 2.37 s | 670 MB |
+| fast-ccsds-parser: `iter_file` (streaming) | 0.88 s | 23 MB |
+| fast-ccsds-parser: pandas via per-packet dicts | 2.25 s | 677 MB |
 | ccsdspy: `read_primary_headers` | 21.28 s | 123 MB |
 | ccsdspy: `iter_packet_bytes` (raw bytes only) | 0.41 s | 63 MB |
 | space_packet_parser: `ccsds_generator` (raw bytes only) | 0.36 s | 72 MB |
 
+(ccsdspy 2.0.1 and space_packet_parser 6.2.0 rows were measured in the same
+setup.)
+
 What this shows:
 
+- The columnar scan is the fastest way to a DataFrame: `to_pandas()` is
+  about 5x faster than building from per-packet dicts and uses about a
+  quarter of the memory (188 MB vs 677 MB for 32 MB of input).
 - Streaming with `iter_file` uses the least memory of all cases.
-- Building a DataFrame from per-packet dicts inflates memory about 20x over
-  the input size. Columnar output (Phase 2a below) is designed to remove this.
 - Iterating raw packet bytes is about 2x faster in ccsdspy and
   space_packet_parser, because `iter_file` also decodes every header and
   copies each payload. This is a known optimization target.
@@ -160,16 +213,17 @@ What this shows:
 Run it yourself:
 
 ```console
-pip install -e . ccsdspy space_packet_parser pandas
+pip install -e ".[all]" ccsdspy space_packet_parser
 python benchmarks/bench.py                  # synthetic data
 python benchmarks/bench.py path/to/dump.bin # your own dump
 ```
 
 ## Roadmap
 
-- **Phase 2a:** columnar output (`to_arrow()`, `to_polars()`, `to_pandas()`)
-  that keeps memory close to the input size, with Arrow / Polars / pandas as
-  optional extras.
+- **Phase 2a (done in 0.2.0):** columnar output (`scan_file()`,
+  `to_arrow()`, `to_polars()`, `to_pandas()`, `write_parquet()`) that keeps
+  memory close to the input size, with Arrow / Polars / pandas as optional
+  extras.
 - **Phase 2b:** decoding CCSDS time codes (CUC / CDS) from secondary headers
   into timestamps.
 - **Phase 2c:** asyncio parsing of live TCP socket / WebSocket streams

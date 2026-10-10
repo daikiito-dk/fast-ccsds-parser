@@ -23,6 +23,13 @@
 pip install fast-ccsds-parser
 ```
 
+コアは依存ゼロです。列形式での出力を使う場合はエクストラ
+（`arrow`、`polars`、`pandas`、または `all`）を追加します:
+
+```console
+pip install "fast-ccsds-parser[pandas]"
+```
+
 またはソースから:
 
 ```console
@@ -45,6 +52,16 @@ for pkt in iter_file("dump_20261010.pkts"):
 
 # メモリ上のバッファも同様に:
 packets = [p.to_dict() for p in iter_packets(buffer)]
+```
+
+ダンプ全体をDataFrameにしたい場合は、パケットごとにdictを作る代わりに
+列ごとにスキャンできます（`fast-ccsds-parser[pandas]` が必要）:
+
+```python
+from fast_ccsds_parser import scan_file, write_parquet
+
+df = scan_file("dump_20261010.pkts").to_pandas()
+write_parquet("dump_20261010.pkts", "dump_20261010.parquet")
 ```
 
 ## パース対象
@@ -82,10 +99,39 @@ bit:   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
 | `iter_packets(data, *, strict=True, skip_idle=False)` | 連結されたパケット列のバッファをイテレート |
 | `parse_packets(data, ...)` | 同上（`list` で返す） |
 | `iter_file(path, ...)` / `parse_file(path, ...)` | ダンプファイルからメモリ一定でストリーム処理 |
+| `scan_bytes(data, *, payload=True, ...)` | バッファを列形式の `PacketTable` に変換 |
+| `scan_file(path, *, payload=True, ...)` | ファイル全体を1つの `PacketTable` に変換（メモリマップ使用） |
+| `iter_tables(path, *, chunk_packets=1_000_000, ...)` | `PacketTable` をチャンクごとに返す（メモリに収まらない大きさのファイル向け） |
+| `write_parquet(source, destination, ...)` | パケットファイルをチャンク単位でParquetに変換 |
 
 `SpacePacket` は `header`（`PrimaryHeader`）、`payload`（データフィールドの
 バイト列）、`raw`（パケット全体のバイト列）を持ち、`to_dict()` で
 すべてを1つのdictに展開します。
+
+### 列形式での出力
+
+`PacketTable` はヘッダの各フィールドを型付きの `array.array` の列として
+保持し、ペイロードは1つの連続バッファにまとめるため、メモリ使用量は
+入力サイズに近く保たれます。列は `offset`、`version`、`type`、
+`secondary_header_flag`、`apid`、`sequence_flags`、`sequence_count`、
+`packet_length`、`payload` です。
+
+```python
+table = scan_file("dump_20261010.pkts")   # または scan_bytes(buffer)
+table.apid                                # array.array（1パケットにつき1要素）
+table.payload(0)                          # 0番目のパケットのペイロード
+
+arrow = table.to_arrow()                  # pyarrow.Table（ヘッダ列はゼロコピー）
+df = table.to_polars()                    # polars.DataFrame
+df = table.to_pandas()                    # pandas.DataFrame（payload列はArrowベースのまま）
+```
+
+出力には対応するエクストラが必要です。`to_arrow()` と `write_parquet()`
+には `pyarrow`（`fast-ccsds-parser[arrow]`）、`to_polars()` と
+`to_pandas()` にはさらに `polars` / `pandas`（`polars`、`pandas`
+エクストラ）が必要です。スキャン自体は標準ライブラリだけで動きます。
+`payload=False` を渡すとヘッダの列だけを保持し、メモリを大幅に
+節約できます。
 
 ## 知っておくべきセマンティクス
 
@@ -111,12 +157,12 @@ CCSDSスペースパケットを扱う成熟したPythonライブラリはすで
 どれもパケット定義なしでパケットの分割とプライマリヘッダの読み取りが
 できます。用途に合わせて選んでください。
 
-| （2026年10月時点） | fast-ccsds-parser 0.1 | [ccsdspy] 2.0 | [space-packet-parser] 6.2 | [spacepackets] 0.32 |
+| （2026年10月時点） | fast-ccsds-parser 0.2 | [ccsdspy] 2.0 | [space-packet-parser] 6.2 | [spacepackets] 0.32 |
 | --- | --- | --- | --- | --- |
 | 主な目的 | 構造の解析（ヘッダ、パケットの区切り、ペイロード） | パケット定義に基づくフィールドのデコード | XTCE定義に基づくフィールドのデコード | パケットの作成と解析（ECSS PUS、CFDPを含む） |
 | 実行時の依存 | なし | numpy、bitstruct、pyyaml、appdirs | click、lxml、rich | fastcrc、deprecation |
 | 定義なしでのヘッダ解析 | あり | あり（`ccsdspy.utils.read_primary_headers`、`split_by_apid`） | あり（`ccsds_generator`） | あり（`parse_space_packets`） |
-| 表形式での出力 | 予定: Arrow / Polars / pandas | NumPy配列（pandasは [SPaC-Kit] 経由） | xarray（オプション） | - |
+| 表形式での出力 | Arrow / Polars / pandas、Parquet出力（オプションの依存） | NumPy配列（pandasは [SPaC-Kit] 経由） | xarray（オプション） | - |
 | リアルタイム入力 | 予定: asyncioでTCP / WebSocket | - | ソケット、UDP（同期処理） | dequeからの逐次解析 |
 | 分割パケットの結合 | - | - | あり | - |
 
@@ -136,23 +182,31 @@ CCSDSスペースパケットを扱う成熟したPythonライブラリはすで
 
 [`benchmarks/bench.py`](benchmarks/bench.py) で、処理速度と最大メモリ
 使用量を計測できます（各ケースを別プロセスで実行）。32バイトの合成
-パケット100万個（32 MB）、Python 3.12、Apple M4、ccsdspy 2.0.1、
-space_packet_parser 6.2.0、pandas 3.0.6での結果:
+パケット100万個（32 MB）、Python 3.12、Apple M4、pandas 3.0.6、
+polars 2.0.0、pyarrow 26.0.0での結果:
 
 | ケース | 時間 | 最大メモリ |
 | --- | ---: | ---: |
+| fast-ccsds-parser: `scan_file`（ヘッダのみ） | 0.15秒 | 80 MB |
+| fast-ccsds-parser: `scan_file`（ペイロードあり） | 0.29秒 | 122 MB |
+| fast-ccsds-parser: `scan_file().to_pandas()` | 0.45秒 | 188 MB |
+| fast-ccsds-parser: `scan_file().to_polars()` | 0.62秒 | 232 MB |
+| fast-ccsds-parser: `write_parquet()` | 0.61秒 | 232 MB |
 | fast-ccsds-parser: ヘッダだけを読む | 0.47秒 | 53 MB |
-| fast-ccsds-parser: `iter_file`（ストリーム処理） | 0.83秒 | 22 MB |
-| fast-ccsds-parser: パケットごとのdictからpandasへ変換 | 2.37秒 | 670 MB |
+| fast-ccsds-parser: `iter_file`（ストリーム処理） | 0.88秒 | 23 MB |
+| fast-ccsds-parser: パケットごとのdictからpandasへ変換 | 2.25秒 | 677 MB |
 | ccsdspy: `read_primary_headers` | 21.28秒 | 123 MB |
 | ccsdspy: `iter_packet_bytes`（生バイトのみ） | 0.41秒 | 63 MB |
 | space_packet_parser: `ccsds_generator`（生バイトのみ） | 0.36秒 | 72 MB |
 
+（ccsdspy 2.0.1とspace_packet_parser 6.2.0の行は同じ環境で計測したものです。）
+
 この結果から分かること:
 
+- DataFrameを作るなら列形式のスキャンが最速。`to_pandas()` はパケット
+  ごとのdictから作る方法の約5倍速く、メモリは約4分の1
+  （32 MBの入力に対して188 MB vs 677 MB）。
 - `iter_file` によるストリーム処理は、すべてのケースの中で最もメモリ使用量が少ない。
-- パケットごとのdictからDataFrameを作ると、メモリが入力サイズの約20倍に
-  膨らむ。下記Phase 2aの列形式の出力は、これをなくすための設計。
 - 生バイトを取り出すだけなら、ccsdspyとspace_packet_parserのほうが約2倍
   速い。`iter_file` はヘッダのデコードとペイロードのコピーも行っている
   ためで、今後の改善対象。
@@ -160,16 +214,17 @@ space_packet_parser 6.2.0、pandas 3.0.6での結果:
 自分で実行する場合:
 
 ```console
-pip install -e . ccsdspy space_packet_parser pandas
+pip install -e ".[all]" ccsdspy space_packet_parser
 python benchmarks/bench.py                  # 合成データ
 python benchmarks/bench.py path/to/dump.bin # 手元のダンプファイル
 ```
 
 ## ロードマップ
 
-- **Phase 2a:** 列形式の出力（`to_arrow()`、`to_polars()`、`to_pandas()`）。
+- **Phase 2a（0.2.0で実装済み）:** 列形式の出力（`scan_file()`、
+  `to_arrow()`、`to_polars()`、`to_pandas()`、`write_parquet()`）。
   メモリ使用量を入力サイズに近く保つ。Arrow / Polars / pandasは
-  オプションの依存にする。
+  オプションの依存。
 - **Phase 2b:** セカンダリヘッダのCCSDS時刻コード（CUC / CDS）を
   タイムスタンプに変換。
 - **Phase 2c:** TCPソケット / WebSocketのリアルタイムストリームを
