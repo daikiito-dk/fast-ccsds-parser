@@ -12,7 +12,12 @@ Example
 'sequence_flags': 3, 'sequence_count': 0, 'packet_length': 3}
 """
 
-from .exceptions import FastCCSDSError, InvalidPacketError, TruncatedPacketError
+from .exceptions import (
+    FastCCSDSError,
+    InvalidPacketError,
+    TruncatedPacketError,
+    UnsupportedTimeCodeError,
+)
 from .header import (
     CCSDS_PACKET_VERSION,
     IDLE_APID,
@@ -31,8 +36,9 @@ from .packets import (
     parse_packets,
 )
 from .table import PacketTable, iter_tables, scan_bytes, scan_file, write_parquet
+from .timecodes import CCSDS_EPOCH, TimeCode, parse_cds, parse_cuc, parse_timecode
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "__version__",
@@ -40,6 +46,7 @@ __all__ = [
     "FastCCSDSError",
     "InvalidPacketError",
     "TruncatedPacketError",
+    "UnsupportedTimeCodeError",
     # header
     "CCSDS_PACKET_VERSION",
     "IDLE_APID",
@@ -61,4 +68,10 @@ __all__ = [
     "scan_file",
     "iter_tables",
     "write_parquet",
+    # time codes
+    "CCSDS_EPOCH",
+    "TimeCode",
+    "parse_cuc",
+    "parse_cds",
+    "parse_timecode",
 ]

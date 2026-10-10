@@ -23,3 +23,13 @@ class TruncatedPacketError(FastCCSDSError):
     Either the primary header is incomplete, or the data field is shorter
     than the ``packet_length`` field declares.
     """
+
+
+class UnsupportedTimeCodeError(FastCCSDSError):
+    """Raised for time codes outside the supported set.
+
+    The supported codes are CUC and CDS (CCSDS 301.0-B-4), including the
+    two-octet CUC P-field extension. CCS, agency-defined level 3/4 codes,
+    reserved time code identifications, and reserved field values raise
+    this error.
+    """

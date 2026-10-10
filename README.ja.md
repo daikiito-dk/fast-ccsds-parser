@@ -103,6 +103,8 @@ bit:   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
 | `scan_file(path, *, payload=True, ...)` | ファイル全体を1つの `PacketTable` に変換（メモリマップ使用） |
 | `iter_tables(path, *, chunk_packets=1_000_000, ...)` | `PacketTable` をチャンクごとに返す（メモリに収まらない大きさのファイル向け） |
 | `write_parquet(source, destination, ...)` | パケットファイルをチャンク単位でParquetに変換 |
+| `parse_timecode(data, *, offset=0, epoch=None)` | `offset` 位置のCUC / CDS時刻コードをデコード（形式は自動判別） |
+| `parse_cuc(...)` / `parse_cds(...)` | 同上（形式を指定する版） |
 
 `SpacePacket` は `header`（`PrimaryHeader`）、`payload`（データフィールドの
 バイト列）、`raw`（パケット全体のバイト列）を持ち、`to_dict()` で
@@ -132,6 +134,43 @@ df = table.to_pandas()                    # pandas.DataFrame（payload列はArro
 エクストラ）が必要です。スキャン自体は標準ライブラリだけで動きます。
 `payload=False` を渡すとヘッダの列だけを保持し、メモリを大幅に
 節約できます。
+
+### 時刻コード（CUC / CDS）
+
+テレメトリパケットのセカンダリヘッダは、慣例的にCCSDS時刻コード
+（[CCSDS 301.0-B-4]）で始まります。`parse_timecode()` はPフィールドを
+読んで形式を判別し、**CUC**（エポックからの秒＋2進小数の秒未満）と
+**CDS**（日数＋ミリ秒＋オプションのサブミリ秒）をタイムゾーン付きの
+`datetime` に変換します。
+
+```python
+from fast_ccsds_parser import parse_timecode
+
+tc = parse_timecode(pkt.payload)   # データフィールド先頭の時刻コード
+tc.timestamp                       # datetime（例: 2026-10-10 12:34:56.789012+00:00）
+pkt.payload[tc.n_bytes:]           # 時刻コードの後に続くデータ
+```
+
+便利メソッドとして、1パケット用の `pkt.timecode(offset=0)` と、
+`PacketTable` 用の `table.timecodes(offset=0)`（ファイル順の
+タイムスタンプのリスト。DataFrameの列にそのまま使えます）があります。
+
+- **エポック。** レベル1のコードはCCSDSエポック（1958-01-01、
+  `CCSDS_EPOCH` として公開）を使います。レベル2（機関定義エポック）の
+  コードには `epoch=...` が必要です。タイムゾーンなしのdatetimeは
+  UTCとみなします。
+- **時刻系。** レベル1のCUCはTAIの秒を数えます（うるう秒でカウントが
+  止まらない）。そのため仕様に完全準拠したミッションでは、結果はUTCより
+  蓄積うるう秒分（2017年以降は37秒）先行して読めます。一方、素朴なUTC
+  カウントを書き込むミッションも多くあります。本ライブラリは推測で
+  補正せず、ミッション側の約束事に従ってください。CDSはUTCの日・時刻に
+  そのまま対応します。
+- **精度。** マイクロ秒未満の端数（ファイン3オクテットのCUC、32ビットの
+  CDSサブミリ秒）は `datetime` のマイクロ秒精度に切り捨てます。
+- CCS、機関定義のレベル3/4コード、予約済みの識別子は
+  `UnsupportedTimeCodeError` を投げます。
+
+[CCSDS 301.0-B-4]: https://ccsds.org/Pubs/301x0b4e1.pdf
 
 ## 知っておくべきセマンティクス
 
@@ -225,8 +264,9 @@ python benchmarks/bench.py path/to/dump.bin # 手元のダンプファイル
   `to_arrow()`、`to_polars()`、`to_pandas()`、`write_parquet()`）。
   メモリ使用量を入力サイズに近く保つ。Arrow / Polars / pandasは
   オプションの依存。
-- **Phase 2b:** セカンダリヘッダのCCSDS時刻コード（CUC / CDS）を
-  タイムスタンプに変換。
+- **Phase 2b（0.3.0で実装済み）:** セカンダリヘッダのCCSDS時刻コード
+  （CUC / CDS）をタイムスタンプに変換（`parse_timecode()`、
+  `pkt.timecode()`、`table.timecodes()`）。
 - **Phase 2c:** TCPソケット / WebSocketのリアルタイムストリームを
   asyncioで解析（WebSocketはオプションの依存）。
 - **Phase 3:** ベンチマークで遅いと分かった処理をRust（PyO3）に置き換え。

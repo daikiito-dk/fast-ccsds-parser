@@ -104,6 +104,8 @@ bit:   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
 | `scan_file(path, *, payload=True, ...)` | Parse a whole file into one `PacketTable` (memory-mapped) |
 | `iter_tables(path, *, chunk_packets=1_000_000, ...)` | Yield one `PacketTable` per chunk, for files larger than memory |
 | `write_parquet(source, destination, ...)` | Convert a packet file to Parquet chunk by chunk |
+| `parse_timecode(data, *, offset=0, epoch=None)` | Decode the CUC or CDS time code at `offset` (format auto-detected) |
+| `parse_cuc(...)` / `parse_cds(...)` | Same, pinned to one format |
 
 `SpacePacket` carries `header` (a `PrimaryHeader`), `payload` (the data
 field bytes), `raw` (the complete packet bytes), and a `to_dict()` that
@@ -131,6 +133,43 @@ Export needs the matching extra: `to_arrow()` and `write_parquet()` need
 add `polars` / `pandas` (the `polars` and `pandas` extras). Scanning
 itself works with the standard library alone; pass `payload=False` to keep
 only the header columns and use much less memory.
+
+### Time codes (CUC / CDS)
+
+Telemetry packets conventionally start their secondary header with a CCSDS
+time code ([CCSDS 301.0-B-4]). `parse_timecode()` reads the P-field and
+decodes **CUC** (binary seconds + fraction since an epoch) or **CDS**
+(days + milliseconds of day + optional sub-milliseconds) into a
+timezone-aware `datetime`:
+
+```python
+from fast_ccsds_parser import parse_timecode
+
+tc = parse_timecode(pkt.payload)   # time code at the start of the data field
+tc.timestamp                       # datetime, e.g. 2026-10-10 12:34:56.789012+00:00
+pkt.payload[tc.n_bytes:]           # whatever follows the time code
+```
+
+Conveniences: `pkt.timecode(offset=0)` for a single packet and
+`table.timecodes(offset=0)` for a `PacketTable` (a list of timestamps in
+file order, handy as a DataFrame column).
+
+- **Epochs.** Level 1 codes use the CCSDS epoch (1958-01-01, exported as
+  `CCSDS_EPOCH`). Level 2 (agency-defined epoch) codes need `epoch=...`;
+  naive datetimes are assumed UTC.
+- **Time scale.** Level 1 CUC counts TAI seconds (the count does not step
+  at leap seconds), so for a spec-compliant mission the result reads ahead
+  of UTC by the accumulated leap seconds (37 s since 2017). Many missions
+  write naive UTC counts instead; apply your mission's convention, this
+  library deliberately does not guess. CDS maps arithmetically onto UTC
+  days.
+- **Precision.** Sub-microsecond fractions (CUC with three fine octets,
+  the 32-bit CDS sub-millisecond segment) are truncated to `datetime`'s
+  microsecond resolution.
+- CCS, agency-defined level 3/4 codes, and reserved identifications raise
+  `UnsupportedTimeCodeError`.
+
+[CCSDS 301.0-B-4]: https://ccsds.org/Pubs/301x0b4e1.pdf
 
 ## Semantics to know
 
@@ -224,8 +263,9 @@ python benchmarks/bench.py path/to/dump.bin # your own dump
   `to_arrow()`, `to_polars()`, `to_pandas()`, `write_parquet()`) that keeps
   memory close to the input size, with Arrow / Polars / pandas as optional
   extras.
-- **Phase 2b:** decoding CCSDS time codes (CUC / CDS) from secondary headers
-  into timestamps.
+- **Phase 2b (done in 0.3.0):** decoding CCSDS time codes (CUC / CDS) from
+  secondary headers into timestamps (`parse_timecode()`, `pkt.timecode()`,
+  `table.timecodes()`).
 - **Phase 2c:** asyncio parsing of live TCP socket / WebSocket streams
   (WebSocket as an optional extra).
 - **Phase 3:** move the hot loops that benchmarks show are slow to Rust

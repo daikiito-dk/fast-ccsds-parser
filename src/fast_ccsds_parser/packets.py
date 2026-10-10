@@ -22,10 +22,14 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import BinaryIO
+from typing import TYPE_CHECKING, BinaryIO
 
 from .exceptions import InvalidPacketError, TruncatedPacketError
 from .header import PRIMARY_HEADER_SIZE, PrimaryHeader
+from .timecodes import TimeCode, parse_timecode
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 __all__ = [
     "SpacePacket",
@@ -65,6 +69,20 @@ class SpacePacket:
         result: dict[str, int | bytes] = self.header.to_dict()
         result["payload"] = self.payload
         return result
+
+    def timecode(
+        self, *, offset: int = 0, epoch: datetime | None = None
+    ) -> TimeCode:
+        """Decode the CCSDS time code (CUC or CDS) in the data field.
+
+        Telemetry packets conventionally start their secondary header (and
+        therefore the data field) with a time code, so the default
+        ``offset=0`` decodes that. Pass ``offset`` if the time code sits
+        deeper inside the secondary header, and ``epoch`` for level 2
+        (agency-defined epoch) codes. See
+        :mod:`fast_ccsds_parser.timecodes` for the time-scale caveats.
+        """
+        return parse_timecode(self.payload, offset=offset, epoch=epoch)
 
 
 def parse_packet(

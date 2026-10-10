@@ -325,6 +325,8 @@
 <span class="c"># ダンプファイルを1パケットずつ / Stream a whole dump, packet by packet</span>
 <span class="k">for</span> pkt <span class="k">in</span> <span class="f">iter_file</span>(<span class="s">"groundstation_dump.bin"</span>):
     <span class="f">print</span>(pkt.header.apid, pkt.header.sequence_count, <span class="f">len</span>(pkt.payload))
+    <span class="c"># 時刻コード（CUC/CDS）も1行で / The packet's time code in one call</span>
+    <span class="f">print</span>(pkt.<span class="f">timecode</span>().timestamp)
 
 <span class="c"># DataFrameやParquetに一発変換 / Straight to a DataFrame or Parquet</span>
 <span class="k">from</span> fast_ccsds_parser <span class="k">import</span> scan_file, write_parquet
@@ -437,10 +439,10 @@ df = <span class="f">scan_file</span>(<span class="s">"groundstation_dump.bin"</
           <p lang="ja"><strong>表形式での出力（v0.2.0、公開済み）</strong><br><code>scan_file()</code>・<code>to_arrow()</code>・<code>to_polars()</code>・<code>to_pandas()</code>・<code>write_parquet()</code>。データを列ごとにまとめて持ち、メモリ使用量を入力ファイルの大きさに近く保ちます。</p>
           <p lang="en"><strong>Columnar output (v0.2.0, released)</strong><br><code>scan_file()</code>, <code>to_arrow()</code>, <code>to_polars()</code>, <code>to_pandas()</code>, <code>write_parquet()</code>, keeping memory close to the input size.</p>
         </li>
-        <li class="next">
-          <div class="phase">→ Phase 2b</div>
-          <p lang="ja"><strong>時刻の解析</strong><br>セカンダリヘッダに入っているCCSDS時刻コード（CUC・CDS）をタイムスタンプに変換します。</p>
-          <p lang="en"><strong>Time codes</strong><br>Decode CCSDS time codes (CUC / CDS) in secondary headers into timestamps.</p>
+        <li class="done">
+          <div class="phase">✓ Phase 2b</div>
+          <p lang="ja"><strong>時刻の解析（v0.3.0、公開済み）</strong><br>セカンダリヘッダに入っているCCSDS時刻コード（CUC・CDS）を <code>parse_timecode()</code> や <code>pkt.timecode()</code> でタイムスタンプに変換します。</p>
+          <p lang="en"><strong>Time codes (v0.3.0, released)</strong><br>Decode CCSDS time codes (CUC / CDS) in secondary headers into timestamps via <code>parse_timecode()</code> and <code>pkt.timecode()</code>.</p>
         </li>
         <li class="next">
           <div class="phase">→ Phase 2c</div>

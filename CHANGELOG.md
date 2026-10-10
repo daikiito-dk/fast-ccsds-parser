@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-10
+
+### Added
+
+- Time code decoding (Phase 2b): `parse_timecode`, `parse_cuc`, and
+  `parse_cds` decode the two self-describing CCSDS 301.0-B-4 time codes
+  into timezone-aware datetimes. CUC (unsegmented seconds + binary
+  fraction) supports the two-octet P-field extension; CDS (day +
+  milliseconds of day) supports 16/24-bit day segments and the 16-bit
+  microsecond / 32-bit picosecond sub-millisecond segments.
+- `TimeCode` result carrying `timestamp`, `format`, `level`, `preamble`,
+  and `n_bytes` (so callers can locate fields behind the time code).
+- `SpacePacket.timecode()` and `PacketTable.timecodes()` conveniences for
+  the common case of a time code at the start of the data field.
+- `CCSDS_EPOCH` constant and `epoch=` parameter for level 2
+  (agency-defined epoch) codes.
+- `UnsupportedTimeCodeError` for CCS, agency-defined level 3/4 codes, and
+  reserved time code identifications.
+- Decoding is verified against hand-computed vectors from the standard,
+  `datetime` arithmetic as ground truth (20,000 randomized cases), and the
+  `spacepackets` reference implementation (post-1970 dates; `spacepackets`
+  0.32 mis-handles pre-1970 CDS dates).
+
 ## [0.2.0] - 2026-10-10
 
 ### Added

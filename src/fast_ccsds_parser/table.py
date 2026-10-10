@@ -32,8 +32,11 @@ from typing import TYPE_CHECKING, Any
 
 from .exceptions import TruncatedPacketError
 from .header import IDLE_APID, PRIMARY_HEADER_SIZE, PrimaryHeader
+from .timecodes import parse_timecode
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     import pandas
     import polars
     import pyarrow
@@ -149,6 +152,32 @@ class PacketTable:
         start = self._payload_offsets[index]
         end = self._payload_offsets[index + 1]
         return bytes(self._payload_data[start:end])
+
+    def timecodes(
+        self, *, offset: int = 0, epoch: datetime | None = None
+    ) -> list[datetime]:
+        """Decode the CCSDS time code (CUC or CDS) of every packet.
+
+        The time code is read at ``offset`` inside each payload (the data
+        field conventionally starts with it, hence the default of 0), and
+        the decoded timestamps are returned as a list of timezone-aware
+        :class:`~datetime.datetime` in file order. Each payload is decoded
+        in place, so a short payload raises instead of bleeding into the
+        next packet. See :mod:`fast_ccsds_parser.timecodes` for the
+        parameters and the time-scale caveats.
+        """
+        if self._payload_data is None or self._payload_offsets is None:
+            raise ValueError("this table was scanned with payload=False")
+        if offset < 0:
+            raise ValueError("offset must be >= 0")
+        view = memoryview(self._payload_data)
+        offsets = self._payload_offsets
+        return [
+            parse_timecode(
+                view[offsets[i] : offsets[i + 1]], offset=offset, epoch=epoch
+            ).timestamp
+            for i in range(len(self))
+        ]
 
     # -- export -----------------------------------------------------------
 
