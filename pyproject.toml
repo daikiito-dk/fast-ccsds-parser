@@ -46,7 +46,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/daikiito-dk/fast-ccsds-parser"
+Homepage = "https://daikiito-dk.github.io/fast-ccsds-parser/"
 Repository = "https://github.com/daikiito-dk/fast-ccsds-parser"
 Issues = "https://github.com/daikiito-dk/fast-ccsds-parser/issues"
 Changelog = "https://github.com/daikiito-dk/fast-ccsds-parser/blob/main/CHANGELOG.md"

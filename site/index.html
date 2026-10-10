@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ja" data-lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fast-ccsds-parser: CCSDS space packets for Python</title>
+  <meta name="description" content="Fast, dependency-free parsing of CCSDS Space Packets for Python. 人工衛星のCCSDSスペースパケットをPythonで高速・依存ゼロで解析。">
+  <meta property="og:title" content="fast-ccsds-parser">
+  <meta property="og:description" content="Fast, dependency-free parsing of CCSDS Space Packets for Python.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://daikiito-dk.github.io/fast-ccsds-parser/">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>">
+  <style>
+    :root {
+      --bg: #070b1a;
+      --bg2: #0e1430;
+      --card: #121a3a;
+      --line: #24305e;
+      --text: #e6e9f5;
+      --muted: #9aa3c7;
+      --accent: #5cc8ff;
+      --accent2: #a78bfa;
+      --ok: #4ade80;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+    }
+    /* Language switching: only the active language's blocks are shown. */
+    html[data-lang="ja"] [lang="en"] { display: none !important; }
+    html[data-lang="en"] [lang="ja"] { display: none !important; }
+
+    a { color: var(--accent); }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+    header.nav {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(7, 11, 26, 0.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
+    }
+    header.nav .wrap { display: flex; align-items: center; gap: 20px; height: 60px; }
+    .brand { font-weight: 700; color: var(--text); text-decoration: none; font-family: var(--mono); }
+    .nav-links { display: flex; gap: 18px; margin-left: auto; font-size: 14px; }
+    .nav-links a { color: var(--muted); text-decoration: none; }
+    .nav-links a:hover { color: var(--text); }
+    .lang-toggle {
+      border: 1px solid var(--line); background: var(--card); color: var(--text);
+      border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px;
+    }
+
+    .hero {
+      position: relative; overflow: hidden;
+      padding: 96px 0 80px;
+      background:
+        radial-gradient(ellipse at 80% 0%, rgba(92, 200, 255, 0.18), transparent 55%),
+        radial-gradient(ellipse at 10% 100%, rgba(167, 139, 250, 0.16), transparent 55%);
+    }
+    .stars {
+      position: absolute; inset: 0; pointer-events: none; opacity: 0.6;
+      background-image:
+        radial-gradient(1px 1px at 20% 30%, #fff, transparent),
+        radial-gradient(1px 1px at 70% 20%, #fff, transparent),
+        radial-gradient(1px 1px at 40% 80%, #fff, transparent),
+        radial-gradient(1.5px 1.5px at 85% 60%, #fff, transparent),
+        radial-gradient(1px 1px at 10% 70%, #fff, transparent),
+        radial-gradient(1px 1px at 55% 45%, #fff, transparent),
+        radial-gradient(1.5px 1.5px at 30% 10%, #fff, transparent),
+        radial-gradient(1px 1px at 92% 88%, #fff, transparent);
+    }
+    .hero h1 { font-size: clamp(32px, 5vw, 52px); line-height: 1.2; margin: 0 0 20px; }
+    .hero h1 .grad {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero p.lead { font-size: 19px; color: var(--muted); max-width: 720px; margin: 0 0 32px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+    .badge {
+      font-size: 12px; padding: 3px 10px; border-radius: 999px;
+      border: 1px solid var(--line); background: var(--bg2); color: var(--muted);
+    }
+    .install {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: #000; border: 1px solid var(--line); border-radius: 10px;
+      padding: 12px 16px; font-family: var(--mono); font-size: 16px;
+    }
+    .install .prompt { color: var(--muted); user-select: none; }
+    .copy {
+      border: 1px solid var(--line); background: var(--card); color: var(--text);
+      border-radius: 6px; padding: 2px 10px; cursor: pointer; font-size: 12px;
+    }
+    .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+    .btn {
+      display: inline-block; padding: 10px 18px; border-radius: 8px; text-decoration: none;
+      font-weight: 600; font-size: 15px;
+    }
+    .btn.primary { background: var(--accent); color: #04121f; }
+    .btn.ghost { border: 1px solid var(--line); color: var(--text); }
+
+    section { padding: 72px 0; border-top: 1px solid var(--line); }
+    section h2 { font-size: 28px; margin: 0 0 12px; }
+    section .sub { color: var(--muted); margin: 0 0 36px; max-width: 760px; }
+
+    .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px;
+    }
+    .card .icon { font-size: 28px; }
+    .card h3 { margin: 8px 0 6px; font-size: 18px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+    /* Before / after illustration */
+    .flow { display: grid; gap: 18px; grid-template-columns: 1fr auto 1fr; align-items: center; }
+    @media (max-width: 760px) { .flow { grid-template-columns: 1fr; } .flow .arrow { transform: rotate(90deg); } }
+    .flow .arrow { font-size: 32px; color: var(--accent); text-align: center; }
+    .hex {
+      font-family: var(--mono); font-size: 14px; color: var(--muted);
+      background: #000; border: 1px solid var(--line); border-radius: 12px; padding: 18px;
+      word-break: break-all; line-height: 1.9;
+    }
+    .hex .h { color: var(--accent); }
+    .hex .p { color: #d1d5db; }
+    table.pkts { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table.pkts th, table.pkts td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+    table.pkts th { color: var(--muted); font-weight: 600; }
+    table.pkts td { font-family: var(--mono); }
+    .table-box { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+
+    pre.code {
+      background: #000; border: 1px solid var(--line); border-radius: 12px;
+      padding: 20px; overflow-x: auto; font-family: var(--mono); font-size: 14px; line-height: 1.7;
+      margin: 0;
+    }
+    .c { color: #6b7394; }
+    .k { color: #c792ea; }
+    .s { color: #c3e88d; }
+    .f { color: var(--accent); }
+
+    .stats { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 24px; }
+    .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+    .stat .num { font-size: 34px; font-weight: 800; color: var(--ok); font-family: var(--mono); }
+    .stat .lbl { color: var(--muted); font-size: 14px; }
+
+    .roadmap { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+    .roadmap li {
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px;
+      display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: start;
+    }
+    @media (max-width: 600px) { .roadmap li { grid-template-columns: 1fr; } }
+    .phase { font-weight: 700; font-family: var(--mono); }
+    .done .phase { color: var(--ok); }
+    .next .phase { color: var(--accent); }
+    .later .phase { color: var(--accent2); }
+    .roadmap p { margin: 0; color: var(--muted); }
+    .roadmap strong { color: var(--text); }
+
+    footer { border-top: 1px solid var(--line); padding: 36px 0; color: var(--muted); font-size: 14px; }
+    footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; }
+  </style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#">🛰️ fast-ccsds-parser</a>
+    <nav class="nav-links">
+      <a href="#what"><span lang="ja">できること</span><span lang="en">What it does</span></a>
+      <a href="#usage"><span lang="ja">使い方</span><span lang="en">Usage</span></a>
+      <a href="#roadmap"><span lang="ja">ロードマップ</span><span lang="en">Roadmap</span></a>
+      <a href="https://github.com/daikiito-dk/fast-ccsds-parser">GitHub</a>
+    </nav>
+    <button class="lang-toggle" id="lang-toggle" type="button" aria-label="Switch language">EN / 日本語</button>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="stars"></div>
+    <div class="wrap" style="position: relative;">
+      <div class="badges">
+        <span class="badge">CCSDS 133.0-B-2</span>
+        <span class="badge">Python 3.10+</span>
+        <span class="badge" lang="ja">依存ライブラリなし</span>
+        <span class="badge" lang="en">Zero dependencies</span>
+        <span class="badge">MIT License</span>
+      </div>
+      <h1 lang="ja">人工衛星のデータを、<br><span class="grad">一瞬で読めるかたち</span>に。</h1>
+      <h1 lang="en">Satellite telemetry,<br><span class="grad">parsed in a blink.</span></h1>
+      <p class="lead" lang="ja">
+        fast-ccsds-parser は、宇宙業界の通信規格「CCSDSスペースパケット」を
+        Pythonで高速に解析するライブラリです。衛星から届いたバイナリデータを
+        パケットごとに切り分け、ヘッダとペイロードをすぐ扱えるかたちにします。
+      </p>
+      <p class="lead" lang="en">
+        fast-ccsds-parser is a Python library for CCSDS Space Packets, the
+        telemetry standard used across the space industry. It splits raw
+        binary dumps into packets and hands you clean headers and payloads.
+      </p>
+      <div class="install">
+        <span class="prompt">$</span>
+        <code id="install-cmd">pip install fast-ccsds-parser</code>
+        <button class="copy" id="copy-btn" type="button">Copy</button>
+      </div>
+      <div class="cta">
+        <a class="btn primary" href="https://pypi.org/project/fast-ccsds-parser/">PyPI</a>
+        <a class="btn ghost" href="https://github.com/daikiito-dk/fast-ccsds-parser">GitHub</a>
+      </div>
+    </div>
+  </div>
+
+  <section id="what">
+    <div class="wrap">
+      <h2 lang="ja">何をしてくれるの？</h2>
+      <h2 lang="en">What does it do?</h2>
+      <p class="sub" lang="ja">
+        人工衛星は、温度や電池の残量、撮影した画像などの情報を小さな「小包（パケット）」に
+        分けて、次々と地上へ送ってきます。届いたままのデータは数字が並んでいるだけで、
+        どこが1つの小包の区切りなのか人には読めません。このライブラリは郵便局の仕分け係のように、
+        小包の区切りを見つけ、荷札を読み、中身を取り出します。
+      </p>
+      <p class="sub" lang="en">
+        Satellites send their data (temperatures, battery levels, images) as a
+        stream of small "parcels" called packets. As received, it is just a wall
+        of bytes. This library works like a mail sorter: it finds where each
+        parcel starts and ends, reads its label, and unpacks the contents.
+      </p>
+
+      <div class="flow">
+        <div>
+          <div class="hex">
+            <span class="h">0d 8a c0 00 00 15</span> <span class="p">00 00 00 01 3e 88 00 00 00 00 be 85 61 91 00 00 00 01 33 33 89 27</span>
+            <span class="h">0d 8a c0 01 00 15</span> <span class="p">00 00 00 01 52 0f 00 00 00 00 be 8f 61 93 02 01 00 00 33 33 02 98</span>
+            <span class="h">0d 8a c0 02 00 15</span> <span class="p">…</span>
+          </div>
+          <p class="sub" style="margin: 10px 0 0; font-size: 14px;" lang="ja">衛星から届いたままのデータ（実データの先頭）</p>
+          <p class="sub" style="margin: 10px 0 0; font-size: 14px;" lang="en">Raw bytes from a spacecraft (start of a real dump)</p>
+        </div>
+        <div class="arrow">➜</div>
+        <div class="table-box">
+          <table class="pkts">
+            <thead>
+              <tr>
+                <th>APID</th>
+                <th><span lang="ja">番号</span><span lang="en">Seq</span></th>
+                <th><span lang="ja">長さ</span><span lang="en">Bytes</span></th>
+                <th><span lang="ja">中身</span><span lang="en">Payload</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>1418</td><td>0</td><td>28</td><td>00000001 3e88…</td></tr>
+              <tr><td>1418</td><td>1</td><td>28</td><td>00000001 520f…</td></tr>
+              <tr><td>1418</td><td>2</td><td>28</td><td>…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2 lang="ja">特長</h2>
+      <h2 lang="en">Features</h2>
+      <p class="sub" lang="ja">小型衛星スタートアップ、大学の研究室、衛星データを扱うエンジニアのために。</p>
+      <p class="sub" lang="en">Built for small-satellite startups, university labs, and data engineers.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="icon">🏷️</div>
+          <h3 lang="ja">ヘッダ解析</h3>
+          <h3 lang="en">Header parsing</h3>
+          <p lang="ja">6バイトのプライマリヘッダから、バージョン、APID、シーケンス番号、パケット長などを取り出します。</p>
+          <p lang="en">Decodes the 6-byte primary header: version, APID, sequence flags and count, packet length.</p>
+        </div>
+        <div class="card">
+          <div class="icon">✂️</div>
+          <h3 lang="ja">ペイロード分離</h3>
+          <h3 lang="en">Payload extraction</h3>
+          <p lang="ja">ヘッダの長さ情報をもとに、データ本体を正確に切り出します。間違えやすい「長さ − 1」の扱いも内部で処理します。</p>
+          <p lang="en">Slices each data field exactly, handling the error-prone "length minus one" rule for you.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🌊</div>
+          <h3 lang="ja">巨大ファイルもOK</h3>
+          <h3 lang="en">Huge files welcome</h3>
+          <p lang="ja">ファイルを1パケットずつ読むため、ギガバイト級のダンプでもメモリ使用量は一定です。</p>
+          <p lang="en">Streams files packet by packet with constant memory, so gigabyte-scale dumps are fine.</p>
+        </div>
+        <div class="card">
+          <div class="icon">📦</div>
+          <h3 lang="ja">インストールが簡単</h3>
+          <h3 lang="en">Installs anywhere</h3>
+          <p lang="ja">Python標準ライブラリだけで動きます。<code>pip install</code> ですぐに使えます。</p>
+          <p lang="en">Pure standard library. One <code>pip install</code> and you are done.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="usage">
+    <div class="wrap">
+      <h2 lang="ja">使い方</h2>
+      <h2 lang="en">Usage</h2>
+      <p class="sub" lang="ja">数行で、ダンプファイルのパケットを順番に取り出せます。</p>
+      <p class="sub" lang="en">A few lines walk every packet in a dump file.</p>
+<pre class="code"><span class="k">from</span> fast_ccsds_parser <span class="k">import</span> iter_file, parse_primary_header
+
+<span class="c"># ヘッダだけを dict で / Just one header, as a dict</span>
+<span class="f">parse_primary_header</span>(raw_bytes)
+<span class="c"># {'version': 0, 'type': 0, 'secondary_header_flag': 1, 'apid': 42,</span>
+<span class="c">#  'sequence_flags': 3, 'sequence_count': 1337, 'packet_length': 255}</span>
+
+<span class="c"># ダンプファイルを1パケットずつ / Stream a whole dump, packet by packet</span>
+<span class="k">for</span> pkt <span class="k">in</span> <span class="f">iter_file</span>(<span class="s">"groundstation_dump.bin"</span>):
+    <span class="f">print</span>(pkt.header.apid, pkt.header.sequence_count, <span class="f">len</span>(pkt.payload))</pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2 lang="ja">本物の衛星データで検証済み</h2>
+      <h2 lang="en">Tested on real spacecraft data</h2>
+      <p class="sub" lang="ja">
+        NASAの探査機エウロパ・クリッパーに搭載されたダスト分析装置（SUDA）の実テレメトリを使ってテストしています。
+        すべてのパケットを1バイトのずれもなく切り分けられることを、CIで毎回確認しています。
+      </p>
+      <p class="sub" lang="en">
+        The test suite parses real telemetry from the SUDA dust analyzer on NASA's
+        Europa Clipper mission, checking on every CI run that each packet is framed
+        byte for byte.
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <div class="num">7.3 MB</div>
+          <div class="lbl" lang="ja">実テレメトリダンプ</div>
+          <div class="lbl" lang="en">real telemetry dump</div>
+        </div>
+        <div class="stat">
+          <div class="num">10,589</div>
+          <div class="lbl" lang="ja">パケットを完全に解析</div>
+          <div class="lbl" lang="en">packets parsed</div>
+        </div>
+        <div class="stat">
+          <div class="num">0</div>
+          <div class="lbl" lang="ja">バイトのずれ</div>
+          <div class="lbl" lang="en">bytes out of place</div>
+        </div>
+        <div class="stat">
+          <div class="num">3.10–3.14</div>
+          <div class="lbl" lang="ja">対応Pythonバージョン</div>
+          <div class="lbl" lang="en">Python versions tested</div>
+        </div>
+      </div>
+      <p class="sub" style="font-size: 13px; margin: 0;" lang="ja">
+        テストデータは CCSDSPy プロジェクトの <a href="https://github.com/CCSDSPy/SPaC-Kit">SPaC-Kit</a>（Apache-2.0）で公開されているものを、テスト時にダウンロードして使っています。
+      </p>
+      <p class="sub" style="font-size: 13px; margin: 0;" lang="en">
+        The dump is published by the CCSDSPy project in <a href="https://github.com/CCSDSPy/SPaC-Kit">SPaC-Kit</a> (Apache-2.0) and downloaded at test time.
+      </p>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="wrap">
+      <h2 lang="ja">ロードマップ</h2>
+      <h2 lang="en">Roadmap</h2>
+      <p class="sub" lang="ja">Python APIはそのままに、段階的に機能と速度を高めていきます。</p>
+      <p class="sub" lang="en">The Python API stays stable while features and speed grow.</p>
+      <ol class="roadmap">
+        <li class="done">
+          <div class="phase">✓ Phase 1</div>
+          <p lang="ja"><strong>Pure Python プロトタイプ（v0.1.0、公開済み）</strong><br>ヘッダ解析、パケット分割、ペイロード分離、ファイルのストリーム処理。</p>
+          <p lang="en"><strong>Pure-Python prototype (v0.1.0, released)</strong><br>Header parsing, packet splitting, payload extraction, streaming file parsing.</p>
+        </li>
+        <li class="next">
+          <div class="phase">→ Phase 2</div>
+          <p lang="ja"><strong>モダン化</strong><br>pandasの <code>to_dataframe()</code> と、TCPソケットやWebSocketから届くデータをリアルタイムに解析する非同期（asyncio）対応。</p>
+          <p lang="en"><strong>Modern data stack</strong><br>pandas <code>to_dataframe()</code> and asyncio generators for live TCP socket and WebSocket streams.</p>
+        </li>
+        <li class="later">
+          <div class="phase">⚡ Phase 3</div>
+          <p lang="ja"><strong>高速化</strong><br>コアの解析処理をRust（PyO3）で置き換え、処理速度を大きく向上。</p>
+          <p lang="en"><strong>Speed</strong><br>Rewrite the core hot loop in Rust (PyO3) for a large speedup.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Daiki Ito · MIT License</span>
+    <span>
+      <a href="https://github.com/daikiito-dk/fast-ccsds-parser">GitHub</a> ·
+      <a href="https://pypi.org/project/fast-ccsds-parser/">PyPI</a> ·
+      <a href="https://github.com/daikiito-dk/fast-ccsds-parser/blob/main/CHANGELOG.md">Changelog</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var params = new URLSearchParams(location.search);
+    var saved = null;
+    try { saved = localStorage.getItem("lang"); } catch (e) {}
+    var initial = params.get("lang") || saved ||
+      ((navigator.language || "").toLowerCase().indexOf("ja") === 0 ? "ja" : "en");
+    setLang(initial === "en" ? "en" : "ja");
+
+    document.getElementById("lang-toggle").addEventListener("click", function () {
+      setLang(root.getAttribute("data-lang") === "ja" ? "en" : "ja");
+    });
+
+    function setLang(lang) {
+      root.setAttribute("data-lang", lang);
+      root.setAttribute("lang", lang);
+      try { localStorage.setItem("lang", lang); } catch (e) {}
+    }
+
+    var btn = document.getElementById("copy-btn");
+    btn.addEventListener("click", function () {
+      var text = document.getElementById("install-cmd").textContent;
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = "Copied!";
+        setTimeout(function () { btn.textContent = "Copy"; }, 1500);
+      });
+    });
+  })();
+</script>
+</body>
+</html>

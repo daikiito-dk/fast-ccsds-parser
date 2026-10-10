@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/fast-ccsds-parser)](https://pypi.org/project/fast-ccsds-parser/)
 
-[日本語のドキュメントはこちら](README.ja.md)
+[Project page](https://daikiito-dk.github.io/fast-ccsds-parser/) · [日本語のドキュメントはこちら](README.ja.md)
 
 Fast, dependency-free parsing of **CCSDS Space Packets** ([CCSDS 133.0-B-2])
 for the modern Python data stack. Turn raw telemetry dumps into dicts and

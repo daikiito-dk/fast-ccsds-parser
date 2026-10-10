@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/fast-ccsds-parser)](https://pypi.org/project/fast-ccsds-parser/)
 
-[English documentation is here](README.md)
+[紹介ページ](https://daikiito-dk.github.io/fast-ccsds-parser/?lang=ja) · [English documentation is here](README.md)
 
 宇宙業界の通信標準 **CCSDSスペースパケット**（[CCSDS 133.0-B-2]）を、
 モダンなPythonデータスタック向けに高速・依存ゼロで解析するライブラリです。
