@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fast-ccsds-parser"
+description = "Fast, dependency-free parsing of CCSDS Space Packets (CCSDS 133.0-B): primary headers, payload extraction, and streaming file parsing with a pure-Python core."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Daiki Ito", email = "daiki.ito@trustyon.jp" }]
+keywords = [
+    "ccsds",
+    "space-packet",
+    "satellite",
+    "telemetry",
+    "telecommand",
+    "parser",
+    "aerospace",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = []
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-cov",
+    "build",
+    "twine",
+    "ruff",
+]
+
+[project.urls]
+Homepage = "https://github.com/daikiito-dk/fast-ccsds-parser"
+Repository = "https://github.com/daikiito-dk/fast-ccsds-parser"
+Issues = "https://github.com/daikiito-dk/fast-ccsds-parser/issues"
+Changelog = "https://github.com/daikiito-dk/fast-ccsds-parser/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "src/fast_ccsds_parser/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fast_ccsds_parser"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "network: downloads public real-world packet data (auto-skipped when offline)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[tool.coverage.run]
+source = ["fast_ccsds_parser"]
