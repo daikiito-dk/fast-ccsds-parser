@@ -106,33 +106,76 @@ flattens everything into a single dict.
   Pass `strict=False` to parse anyway.
 - All errors derive from `FastCCSDSError` (a `ValueError`).
 
-## Positioning
+## Related projects
 
-| | fast-ccsds-parser | ccsdspy | space-packet-parser |
-| --- | --- | --- | --- |
-| Focus | Structural parsing: split and label packets, fast | Field-level decoding from packet definitions | Field-level decoding from XTCE definitions |
-| Runtime dependencies | None | Yes | Yes |
-| DataFrame / stream pipelines | Roadmap (Phase 2) | - | - |
+Several mature Python libraries already handle CCSDS space packets, and all
+of them can split packets and read primary headers without a mission packet
+definition. Pick the one that fits your job:
+
+| (as of 2026-10) | fast-ccsds-parser 0.1 | [ccsdspy] 2.0 | [space-packet-parser] 6.2 | [spacepackets] 0.32 |
+| --- | --- | --- | --- | --- |
+| Main focus | Structural parsing (headers, packet boundaries, payloads) | Field decoding from packet definitions | Field decoding from XTCE definitions | Building and parsing packets, incl. ECSS PUS and CFDP |
+| Runtime dependencies | None | numpy, bitstruct, pyyaml, appdirs | click, lxml, rich | fastcrc, deprecation |
+| Header-only parsing without definitions | Yes | Yes (`ccsdspy.utils.read_primary_headers`, `split_by_apid`) | Yes (`ccsds_generator`) | Yes (`parse_space_packets`) |
+| Tabular output | Planned: Arrow / Polars / pandas | NumPy arrays (pandas via [SPaC-Kit]) | xarray (optional extra) | - |
+| Live input | Planned: asyncio TCP / WebSocket | - | Sockets and UDP (synchronous) | Incremental parsing from a deque |
+| Segmented packet reassembly | - | - | Yes | - |
 
 If you need to *decode packet contents* against a mission packet database,
-look at [ccsdspy] or [space-packet-parser]; both are excellent and battle
-tested. fast-ccsds-parser does one thing: fast, dependency-free structural
-parsing that is trivial to drop into a pandas or asyncio pipeline.
+use [ccsdspy] or [space-packet-parser]; both are mature and used on flight
+missions. If you build or parse ECSS PUS / CFDP traffic, use [spacepackets].
+fast-ccsds-parser focuses on getting large packet dumps and live streams
+into data-analysis tools quickly and with little memory.
 
 [ccsdspy]: https://github.com/CCSDSPy/ccsdspy
-[space-packet-parser]: https://pypi.org/project/space-packet-parser/
+[space-packet-parser]: https://github.com/lasp/space_packet_parser
+[spacepackets]: https://github.com/ustgt-irs/spacepackets-py
+[SPaC-Kit]: https://github.com/CCSDSPy/SPaC-Kit
 
-## Performance & roadmap
+## Performance
 
-The Phase 1 core is a single-pass parser over precompiled `struct` layouts
-and integer bit operations, and streams files with constant memory, so
-megabyte- to gigabyte-scale dumps are handled without surprises.
+[`benchmarks/bench.py`](benchmarks/bench.py) measures packet throughput and
+peak memory, running each case in a fresh process. Results for 1,000,000
+synthetic 32-byte packets (32 MB), Python 3.12, Apple M4, ccsdspy 2.0.1,
+space_packet_parser 6.2.0, pandas 3.0.6:
 
-- **Phase 2 (v0.2):** `to_dataframe()` (optional `pandas` extra) and
-  asyncio generators for live TCP socket / WebSocket streams
-  (optional `websocket` extra).
-- **Phase 3:** replace the core hot loop with Rust (PyO3), keeping the
-  Python API unchanged.
+| Case | Time | Peak RSS |
+| --- | ---: | ---: |
+| fast-ccsds-parser: header walk | 0.47 s | 53 MB |
+| fast-ccsds-parser: `iter_file` (streaming) | 0.83 s | 22 MB |
+| fast-ccsds-parser: pandas via per-packet dicts | 2.37 s | 670 MB |
+| ccsdspy: `read_primary_headers` | 21.28 s | 123 MB |
+| ccsdspy: `iter_packet_bytes` (raw bytes only) | 0.41 s | 63 MB |
+| space_packet_parser: `ccsds_generator` (raw bytes only) | 0.36 s | 72 MB |
+
+What this shows:
+
+- Streaming with `iter_file` uses the least memory of all cases.
+- Building a DataFrame from per-packet dicts inflates memory about 20x over
+  the input size. Columnar output (Phase 2a below) is designed to remove this.
+- Iterating raw packet bytes is about 2x faster in ccsdspy and
+  space_packet_parser, because `iter_file` also decodes every header and
+  copies each payload. This is a known optimization target.
+
+Run it yourself:
+
+```console
+pip install -e . ccsdspy space_packet_parser pandas
+python benchmarks/bench.py                  # synthetic data
+python benchmarks/bench.py path/to/dump.bin # your own dump
+```
+
+## Roadmap
+
+- **Phase 2a:** columnar output (`to_arrow()`, `to_polars()`, `to_pandas()`)
+  that keeps memory close to the input size, with Arrow / Polars / pandas as
+  optional extras.
+- **Phase 2b:** decoding CCSDS time codes (CUC / CDS) from secondary headers
+  into timestamps.
+- **Phase 2c:** asyncio parsing of live TCP socket / WebSocket streams
+  (WebSocket as an optional extra).
+- **Phase 3:** move the hot loops that benchmarks show are slow to Rust
+  (PyO3), keeping the Python API unchanged.
 
 ## Development
 

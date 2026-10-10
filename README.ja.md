@@ -105,33 +105,77 @@ bit:   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
   ずれを意味します。`strict=False` で強制的にパースできます。
 - すべての例外は `FastCCSDSError`（`ValueError` のサブクラス）から派生します。
 
-## 位置づけ
+## 関連プロジェクト
 
-| | fast-ccsds-parser | ccsdspy | space-packet-parser |
-| --- | --- | --- | --- |
-| 目的 | 構造解析: パケットの分割・ラベル付けを高速に | パケット定義に基づくフィールド単位のデコード | XTCE定義に基づくデコード |
-| 実行時依存 | なし | あり | あり |
-| DataFrame / ストリーム連携 | ロードマップ（Phase 2） | - | - |
+CCSDSスペースパケットを扱う成熟したPythonライブラリはすでに複数あり、
+どれもパケット定義なしでパケットの分割とプライマリヘッダの読み取りが
+できます。用途に合わせて選んでください。
 
-パケット**内容**をミッションのパケット定義に対してデコードしたい
-場合は [ccsdspy] か [space-packet-parser] が優秀で実績もあります。
-fast-ccsds-parserが担うのは一点: pandasやasyncioパイプラインに
-そのまま差し込める、高速で依存ゼロの構造解析です。
+| （2026年10月時点） | fast-ccsds-parser 0.1 | [ccsdspy] 2.0 | [space-packet-parser] 6.2 | [spacepackets] 0.32 |
+| --- | --- | --- | --- | --- |
+| 主な目的 | 構造の解析（ヘッダ、パケットの区切り、ペイロード） | パケット定義に基づくフィールドのデコード | XTCE定義に基づくフィールドのデコード | パケットの作成と解析（ECSS PUS、CFDPを含む） |
+| 実行時の依存 | なし | numpy、bitstruct、pyyaml、appdirs | click、lxml、rich | fastcrc、deprecation |
+| 定義なしでのヘッダ解析 | あり | あり（`ccsdspy.utils.read_primary_headers`、`split_by_apid`） | あり（`ccsds_generator`） | あり（`parse_space_packets`） |
+| 表形式での出力 | 予定: Arrow / Polars / pandas | NumPy配列（pandasは [SPaC-Kit] 経由） | xarray（オプション） | - |
+| リアルタイム入力 | 予定: asyncioでTCP / WebSocket | - | ソケット、UDP（同期処理） | dequeからの逐次解析 |
+| 分割パケットの結合 | - | - | あり | - |
+
+パケットの**中身**をミッションのパケット定義に従ってデコードしたい場合は、
+[ccsdspy] か [space-packet-parser] を使ってください。どちらも成熟しており、
+実際のミッションで使われています。ECSS PUSやCFDPの通信を作成・解析する
+場合は [spacepackets] が適しています。fast-ccsds-parserは、大きなパケット
+ダンプやリアルタイムのストリームを、少ないメモリですばやくデータ分析
+ツールに渡すことに力を入れています。
 
 [ccsdspy]: https://github.com/CCSDSPy/ccsdspy
-[space-packet-parser]: https://pypi.org/project/space-packet-parser/
+[space-packet-parser]: https://github.com/lasp/space_packet_parser
+[spacepackets]: https://github.com/ustgt-irs/spacepackets-py
+[SPaC-Kit]: https://github.com/CCSDSPy/SPaC-Kit
 
-## 性能とロードマップ
+## 性能
 
-Phase 1のコアは、プリコンパイル済み `struct` レイアウトと整数ビット演算に
-よるシングルパスのパーサで、ファイルはメモリ一定でストリーム処理する
-ため、メガ〜ギガバイト級のダンプも問題なく扱えます。
+[`benchmarks/bench.py`](benchmarks/bench.py) で、処理速度と最大メモリ
+使用量を計測できます（各ケースを別プロセスで実行）。32バイトの合成
+パケット100万個（32 MB）、Python 3.12、Apple M4、ccsdspy 2.0.1、
+space_packet_parser 6.2.0、pandas 3.0.6での結果:
 
-- **Phase 2（v0.2）:** `to_dataframe()`（オプション依存 `pandas`）と、
-  TCPソケット / WebSocketのライブストリームに対するasyncioジェネレータ
-  （オプション依存 `websocket`）。
-- **Phase 3:** コアのホットループをRust（PyO3）に置き換え。Python APIは
-  変更なし。
+| ケース | 時間 | 最大メモリ |
+| --- | ---: | ---: |
+| fast-ccsds-parser: ヘッダだけを読む | 0.47秒 | 53 MB |
+| fast-ccsds-parser: `iter_file`（ストリーム処理） | 0.83秒 | 22 MB |
+| fast-ccsds-parser: パケットごとのdictからpandasへ変換 | 2.37秒 | 670 MB |
+| ccsdspy: `read_primary_headers` | 21.28秒 | 123 MB |
+| ccsdspy: `iter_packet_bytes`（生バイトのみ） | 0.41秒 | 63 MB |
+| space_packet_parser: `ccsds_generator`（生バイトのみ） | 0.36秒 | 72 MB |
+
+この結果から分かること:
+
+- `iter_file` によるストリーム処理は、すべてのケースの中で最もメモリ使用量が少ない。
+- パケットごとのdictからDataFrameを作ると、メモリが入力サイズの約20倍に
+  膨らむ。下記Phase 2aの列形式の出力は、これをなくすための設計。
+- 生バイトを取り出すだけなら、ccsdspyとspace_packet_parserのほうが約2倍
+  速い。`iter_file` はヘッダのデコードとペイロードのコピーも行っている
+  ためで、今後の改善対象。
+
+自分で実行する場合:
+
+```console
+pip install -e . ccsdspy space_packet_parser pandas
+python benchmarks/bench.py                  # 合成データ
+python benchmarks/bench.py path/to/dump.bin # 手元のダンプファイル
+```
+
+## ロードマップ
+
+- **Phase 2a:** 列形式の出力（`to_arrow()`、`to_polars()`、`to_pandas()`）。
+  メモリ使用量を入力サイズに近く保つ。Arrow / Polars / pandasは
+  オプションの依存にする。
+- **Phase 2b:** セカンダリヘッダのCCSDS時刻コード（CUC / CDS）を
+  タイムスタンプに変換。
+- **Phase 2c:** TCPソケット / WebSocketのリアルタイムストリームを
+  asyncioで解析（WebSocketはオプションの依存）。
+- **Phase 3:** ベンチマークで遅いと分かった処理をRust（PyO3）に置き換え。
+  Python APIは変更なし。
 
 ## 開発
 

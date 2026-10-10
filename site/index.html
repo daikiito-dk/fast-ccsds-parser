@@ -365,6 +365,49 @@
     </div>
   </section>
 
+  <section id="related">
+    <div class="wrap">
+      <h2 lang="ja">ほかのツールとの使い分け</h2>
+      <h2 lang="en">How it fits with other tools</h2>
+      <p class="sub" lang="ja">
+        CCSDSパケットを扱うPythonライブラリには、成熟したものがすでにいくつもあります。
+        どれもパケットの分割やヘッダの読み取りができるので、目的に合わせて選んでください。
+      </p>
+      <p class="sub" lang="en">
+        Several mature Python libraries already handle CCSDS packets, and all of them can
+        split packets and read headers. Pick the one that fits your job.
+      </p>
+      <div class="grid">
+        <div class="card">
+          <h3><a href="https://github.com/CCSDSPy/ccsdspy">ccsdspy</a></h3>
+          <p lang="ja">パケット定義に従って、中身の値（温度や電圧など）までデコードしたいとき。NASAのミッションでの実績があります。</p>
+          <p lang="en">Decode packet contents (temperatures, voltages) from packet definitions. Used on NASA missions.</p>
+        </div>
+        <div class="card">
+          <h3><a href="https://github.com/lasp/space_packet_parser">space_packet_parser</a></h3>
+          <p lang="ja">XTCE形式のパケット定義でデコードしたいとき。ソケット入力や分割パケットの結合にも対応しています。</p>
+          <p lang="en">Decode with XTCE packet definitions. Also reads sockets and reassembles segmented packets.</p>
+        </div>
+        <div class="card">
+          <h3><a href="https://github.com/ustgt-irs/spacepackets-py">spacepackets</a></h3>
+          <p lang="ja">ECSS PUSやCFDPのパケットを作成・解析したいとき。Rust版もあります。</p>
+          <p lang="en">Build and parse ECSS PUS and CFDP packets. A Rust version is also available.</p>
+        </div>
+        <div class="card">
+          <h3>fast-ccsds-parser</h3>
+          <p lang="ja">大きなダンプやリアルタイムのデータを、少ないメモリですばやく分析ツールに渡したいとき。依存ライブラリはありません。</p>
+          <p lang="en">Get large dumps and live streams into analysis tools quickly, with little memory and no dependencies.</p>
+        </div>
+      </div>
+      <p class="sub" style="font-size: 13px; margin: 24px 0 0;" lang="ja">
+        速度とメモリ使用量の比較は <a href="https://github.com/daikiito-dk/fast-ccsds-parser/blob/main/README.ja.md#性能">README</a> に載せています。計測に使ったスクリプトもリポジトリにあります。
+      </p>
+      <p class="sub" style="font-size: 13px; margin: 24px 0 0;" lang="en">
+        Speed and memory comparisons are in the <a href="https://github.com/daikiito-dk/fast-ccsds-parser#performance">README</a>, with the benchmark script in the repository.
+      </p>
+    </div>
+  </section>
+
   <section id="roadmap">
     <div class="wrap">
       <h2 lang="ja">ロードマップ</h2>
@@ -378,14 +421,24 @@
           <p lang="en"><strong>Pure-Python prototype (v0.1.0, released)</strong><br>Header parsing, packet splitting, payload extraction, streaming file parsing.</p>
         </li>
         <li class="next">
-          <div class="phase">→ Phase 2</div>
-          <p lang="ja"><strong>モダン化</strong><br>pandasの <code>to_dataframe()</code> と、TCPソケットやWebSocketから届くデータをリアルタイムに解析する非同期（asyncio）対応。</p>
-          <p lang="en"><strong>Modern data stack</strong><br>pandas <code>to_dataframe()</code> and asyncio generators for live TCP socket and WebSocket streams.</p>
+          <div class="phase">→ Phase 2a</div>
+          <p lang="ja"><strong>表形式での出力</strong><br><code>to_arrow()</code>・<code>to_polars()</code>・<code>to_pandas()</code>。データを列ごとにまとめて持ち、メモリ使用量を入力ファイルの大きさに近く保ちます。</p>
+          <p lang="en"><strong>Columnar output</strong><br><code>to_arrow()</code>, <code>to_polars()</code>, <code>to_pandas()</code>, keeping memory close to the input size.</p>
+        </li>
+        <li class="next">
+          <div class="phase">→ Phase 2b</div>
+          <p lang="ja"><strong>時刻の解析</strong><br>セカンダリヘッダに入っているCCSDS時刻コード（CUC・CDS）をタイムスタンプに変換します。</p>
+          <p lang="en"><strong>Time codes</strong><br>Decode CCSDS time codes (CUC / CDS) in secondary headers into timestamps.</p>
+        </li>
+        <li class="next">
+          <div class="phase">→ Phase 2c</div>
+          <p lang="ja"><strong>リアルタイム受信</strong><br>TCPソケットやWebSocketから届くデータを、非同期（asyncio）で届いたそばから解析します。</p>
+          <p lang="en"><strong>Live streams</strong><br>asyncio parsing of live TCP socket and WebSocket streams.</p>
         </li>
         <li class="later">
           <div class="phase">⚡ Phase 3</div>
-          <p lang="ja"><strong>高速化</strong><br>コアの解析処理をRust（PyO3）で置き換え、処理速度を大きく向上。</p>
-          <p lang="en"><strong>Speed</strong><br>Rewrite the core hot loop in Rust (PyO3) for a large speedup.</p>
+          <p lang="ja"><strong>高速化</strong><br>ベンチマークで遅いと分かった処理をRust（PyO3）に置き換えます。Pythonからの使い方は変わりません。</p>
+          <p lang="en"><strong>Speed</strong><br>Move the hot loops that benchmarks show are slow to Rust (PyO3), keeping the Python API unchanged.</p>
         </li>
       </ol>
     </div>
