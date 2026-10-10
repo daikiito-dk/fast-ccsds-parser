@@ -1,21 +1,26 @@
-# Publishes sdist + wheel to TestPyPI on every `v*` tag.
+# Publishes sdist + wheel to PyPI on every `v*` tag (or a manual run).
+#
+# The file keeps its historical name because the PyPI trusted publisher is
+# registered against "publish-testpypi.yml"; renaming it breaks publishing
+# until the publisher on pypi.org is updated to the new name.
 #
 # One-time setup (trusted publishing, no API tokens):
-#   1. Sign in at https://test.pypi.org
-#   2. Account settings -> "Add a new pending publisher"
+#   1. Sign in at https://pypi.org
+#   2. Account settings -> Publishing -> "Add a new pending publisher"
 #      - PyPI project name: fast-ccsds-parser
 #      - Owner: daikiito-dk
 #      - Repository: fast-ccsds-parser
 #      - Workflow name: publish-testpypi.yml
 #      - Environment: leave empty
-#   3. Push a tag: git tag v0.1.0 && git push origin v0.1.0
+#   3. Bump __version__, then push a tag: git tag vX.Y.Z && git push origin vX.Y.Z
 
-name: Publish to TestPyPI
+name: Publish to PyPI
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -38,7 +43,7 @@ jobs:
           path: dist/
 
   publish:
-    name: Upload to TestPyPI
+    name: Upload to PyPI
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -50,5 +55,4 @@ jobs:
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository-url: https://test.pypi.org/legacy/
           print-hash: true

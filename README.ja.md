@@ -3,7 +3,7 @@
 [![CI](https://github.com/daikiito-dk/fast-ccsds-parser/actions/workflows/ci.yml/badge.svg)](https://github.com/daikiito-dk/fast-ccsds-parser/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![TestPyPI](https://img.shields.io/badge/TestPyPI-0.1.0-orange)](https://test.pypi.org/project/fast-ccsds-parser/)
+[![PyPI](https://img.shields.io/pypi/v/fast-ccsds-parser)](https://pypi.org/project/fast-ccsds-parser/)
 
 [English documentation is here](README.md)
 
@@ -19,10 +19,8 @@
 
 ## インストール
 
-最初の正式リリースまではTestPyPIから:
-
 ```console
-pip install --index-url https://test.pypi.org/simple/ fast-ccsds-parser
+pip install fast-ccsds-parser
 ```
 
 またはソースから:
@@ -148,22 +146,24 @@ ruff check .      # lint
 その場でダウンロードして解析します。オフライン時は自動スキップ
 （CIでは実行されます）。
 
-## TestPyPIへのリリース
+## PyPIへのリリース
 
 公開には[トラステッドパブリッシング]（APIトークン不要）を使います。
 初回設定は [`.github/workflows/publish-testpypi.yml`](.github/workflows/publish-testpypi.yml)
-に記載しています。その後は:
+に記載しています（ファイル名は経緯によるもので、公開先はPyPIです）。
+`src/fast_ccsds_parser/__init__.py` の `__version__` を上げ、CHANGELOGを
+追記してから:
 
 ```console
-git tag v0.1.0
-git push origin v0.1.0
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 ワークフローがsdist + wheelをビルドし、`twine check` を通して
-[TestPyPI] へアップロードします。
+[PyPI] へアップロードします。
 
 [トラステッドパブリッシング]: https://docs.pypi.org/trusted-publishers/
-[TestPyPI]: https://test.pypi.org/project/fast-ccsds-parser/
+[PyPI]: https://pypi.org/project/fast-ccsds-parser/
 
 ## ライセンス
 

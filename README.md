@@ -3,7 +3,7 @@
 [![CI](https://github.com/daikiito-dk/fast-ccsds-parser/actions/workflows/ci.yml/badge.svg)](https://github.com/daikiito-dk/fast-ccsds-parser/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![TestPyPI](https://img.shields.io/badge/TestPyPI-0.1.0-orange)](https://test.pypi.org/project/fast-ccsds-parser/)
+[![PyPI](https://img.shields.io/pypi/v/fast-ccsds-parser)](https://pypi.org/project/fast-ccsds-parser/)
 
 [日本語のドキュメントはこちら](README.ja.md)
 
@@ -20,10 +20,8 @@ just want their packets parsed, without pulling a decoding framework.
 
 ## Install
 
-Until the first production release, install from TestPyPI:
-
 ```console
-pip install --index-url https://test.pypi.org/simple/ fast-ccsds-parser
+pip install fast-ccsds-parser
 ```
 
 or from source:
@@ -148,22 +146,23 @@ ruff check .      # lint
 Tests marked `network` additionally parse public, real-world packet dumps
 downloaded on the fly; they skip automatically when offline (CI runs them).
 
-## Releasing (TestPyPI)
+## Releasing (PyPI)
 
 Publishing uses [trusted publishing] (no API tokens). One-time setup is
-described in [`.github/workflows/publish-testpypi.yml`](.github/workflows/publish-testpypi.yml).
-Then:
+described in [`.github/workflows/publish-testpypi.yml`](.github/workflows/publish-testpypi.yml)
+(the file name is historical; it publishes to PyPI). Bump `__version__` in
+`src/fast_ccsds_parser/__init__.py`, add a CHANGELOG entry, then:
 
 ```console
-git tag v0.1.0
-git push origin v0.1.0
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 The workflow builds sdist + wheel, runs `twine check`, and uploads to
-[TestPyPI].
+[PyPI].
 
 [trusted publishing]: https://docs.pypi.org/trusted-publishers/
-[TestPyPI]: https://test.pypi.org/project/fast-ccsds-parser/
+[PyPI]: https://pypi.org/project/fast-ccsds-parser/
 
 ## License
 
